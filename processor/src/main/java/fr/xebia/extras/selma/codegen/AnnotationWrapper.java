@@ -19,9 +19,7 @@ package fr.xebia.extras.selma.codegen;
 
 import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 /**
  * Conveniance annotation wrapper class to retrieve easily annotation parameters
@@ -43,8 +41,9 @@ public class AnnotationWrapper {
         this.map = new HashMap<String, AnnotationValue>();
         this.context = context;
 
-        for (ExecutableElement executableElement : context.elements.getElementValuesWithDefaults(annotationMirror).keySet()) {
-            this.map.put(executableElement.getSimpleName().toString(), context.elements.getElementValuesWithDefaults(annotationMirror).get(executableElement));
+        Map<? extends ExecutableElement, ? extends AnnotationValue> values = context.elements.getElementValuesWithDefaults(annotationMirror);
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : values.entrySet()) {
+            this.map.put(entry.getKey().getSimpleName().toString(), entry.getValue());
         }
     }
 
@@ -87,12 +86,19 @@ public class AnnotationWrapper {
         return res;
     }
 
+    @SuppressWarnings("unchecked")
     public List<AnnotationWrapper> getAsAnnotationWrapper(String parameterName) {
 
         List<AnnotationWrapper> res = new ArrayList<AnnotationWrapper>();
         AnnotationValue myValue = map.get(parameterName);
+        List<? extends AnnotationValue> values = null;
         if (myValue.getValue() instanceof List) {
-            List<? extends AnnotationValue> values = (List<? extends AnnotationValue>) myValue.getValue();
+            values = (List<? extends AnnotationValue>) myValue.getValue();
+        } else if (myValue.getValue() instanceof AnnotationValue) {
+            values = Collections.singletonList(myValue);
+        }
+
+        if (values != null) {
             for (AnnotationValue value : values) {
                 if (value.getValue() instanceof AnnotationMirror){
                     res.add(new AnnotationWrapper(context, (AnnotationMirror) value.getValue(), annotatedElement));
@@ -103,24 +109,51 @@ public class AnnotationWrapper {
         return res;
     }
 
-    public boolean getAsBoolean(String ignoreMissingProperties) {
-        return (Boolean) map.get(ignoreMissingProperties).getValue();
+    public boolean getAsBoolean(String parameter) {
+        return (Boolean) map.get(parameter).getValue();
 
     }
 
     public TypeMirror getAsTypeMirror(String parameter) {
-        String classe =  map.get(parameter).getValue().toString();
+        Object value = map.get(parameter).getValue();
+        if (value instanceof TypeMirror) {
+            return (TypeMirror) value;
+        }
+
+        String classe = value.toString();
         final TypeElement element = context.elements.getTypeElement(classe.replace(".class", ""));
+        if (element == null) {
+            throw new IllegalArgumentException("Cannot convert parameter '" + parameter + "' to " +
+                    TypeMirror.class.getName() + ", was " + value.getClass().getName() + ": " +
+                    classe);
+        }
 
         return element.asType();
     }
 
     public String getAsString(String parameter) {
-        return  map.get(parameter).getValue().toString();
+        return map.get(parameter).getValue().toString();
     }
 
     public <T> T getAs(String parameter) {
         return (T) map.get(parameter).getValue();
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> List<T> getAsList(String parameter) {
+        Object val = map.get(parameter).getValue();
+        if (!(val instanceof List)) {
+            throw new IllegalArgumentException("Cannot convert parameter '" + parameter + "' to " +
+                    List.class.getName() + ", was " + val.getClass().getName() + ": " +
+                    val.toString());
+        }
+
+        List<AnnotationValue> values = (List<AnnotationValue>) val;
+        List<T> res = new ArrayList<T>(values.size());
+        for (AnnotationValue annotationValue : values) {
+            res.add((T) annotationValue.getValue());
+        }
+        return res;
     }
 
     public Element asElement() {

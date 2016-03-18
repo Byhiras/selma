@@ -17,6 +17,7 @@
 package fr.xebia.extras.selma.codegen;
 
 import com.squareup.javawriter.JavaWriter;
+import fr.xebia.extras.selma.codegen.BuilderWrapperFactory.BuilderWrapper;
 
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
@@ -79,16 +80,30 @@ public class MapperMethodGenerator {
     private void buildMappingMethod(JavaWriter writer, InOutType inOutType, String name, boolean override) throws IOException {
 
         boolean isPrimitiveOrImmutable = false;
+        // if we're using a builder, sub in the builder as the out type
+        final BuilderWrapper builder = maps.getBuilder(inOutType.out());
+        // the inOutType used for the actual mapping
+        final InOutType mappedInOutType;
+        if (builder == null) {
+            mappedInOutType = inOutType;
+        } else {
+            if (inOutType.isOutPutAsParam()) {
+                context.error(mapperMethod.getMethod(),
+                        "@Mapper method %s cannot support second parameter as the return type %s uses a builder",
+                        mapperMethod.getMethod().getSimpleName(), mapperMethod.getMethod().getReturnType());
+                return;
+            }
+            mappedInOutType = new InOutType(inOutType.in(), builder.getBuilder(), false);
+        }
+
         final MappingSourceNode methodRoot;
         if (configuration.isFinalMappers()) {
-            methodRoot = mapMethod(inOutType, name, override);
+            methodRoot = mapMethod(inOutType, name, override, builder == null ? null : builder.getBuildMethod());
         } else {
-            methodRoot = mapMethodNotFinal(inOutType, name, override);
+            methodRoot = mapMethodNotFinal(inOutType, name, override, builder == null ? null : builder.getBuildMethod());
         }
 
         MappingSourceNode ptr = blank(), blankRoot = ptr;
-
-        MappingSourceNode methodNode = (inOutType.isOutPutAsParam() ? methodRoot.body(blank()) : methodRoot.body(declareOut(inOutType.out())));
 
         MappingBuilder mappingBuilder = findBuilderFor(inOutType);
 
@@ -100,12 +115,12 @@ public class MapperMethodGenerator {
             isPrimitiveOrImmutable = !inOutType.differs() && mappingBuilder.isNullSafe();
 
         } else {
-            if (inOutType.areDeclared() && isSupported(inOutType.out())) {
+            if (inOutType.areDeclared() && (builder != null || isSupported(inOutType.out()))) {
                 // TODO Use factory, source or default constructor to instantiate out
-                final BeanWrapper outBeanWrapper = getBeanWrapperOrNew(context, inOutType.outAsTypeElement());
-                ptr = ptr.body(maps.generateNewInstanceSourceNodes(inOutType, outBeanWrapper));
+                final BeanWrapper outBeanWrapper = getBeanWrapperOrNew(context, mappedInOutType.outAsTypeElement());
+                ptr = ptr.body(maps.generateNewInstanceSourceNodes(mappedInOutType, outBeanWrapper));
                 context.depth++;
-                ptr.child(generate(inOutType));
+                ptr.child(generate(mappedInOutType));
                 context.depth--;
             } else {
                 handleNotSupported(inOutType, ptr);
@@ -113,17 +128,20 @@ public class MapperMethodGenerator {
         }
 
         isPrimitiveOrImmutable = isPrimitiveOrImmutable || inOutType.inIsPrimitive();
+        MappingSourceNode methodNode;
         if (!isPrimitiveOrImmutable) {
-            methodNode = methodNode.child(controlNotNull("in", inOutType.isOutPutAsParam()));
-            methodNode.body(blankRoot.body);
+            methodNode = methodRoot.body(controlNull("in"));
+            methodNode.body(returnDefault(inOutType.out()));
         } else {
-            methodNode.child(blankRoot.body);
+            methodNode = methodRoot.body(blank());
         }
+        methodNode = (inOutType.isOutPutAsParam() ? methodNode.child(blank()) : methodNode.child(declareOut(mappedInOutType.out())));
+        methodNode = methodNode.child(blankRoot.body);
 
         // Call the interceptor if it exist
         MappingBuilder interceptor = maps.mappingInterceptor(inOutType);
         if (interceptor != null) {
-            methodNode.child(interceptor.build(context, new SourceNodeVars()));
+            methodNode.lastChild().child(interceptor.build(context, new SourceNodeVars()));
         }
 
         // Give it a try
@@ -147,8 +165,7 @@ public class MapperMethodGenerator {
             return false;
         }
 
-        // Bean provided by a factory are supported
-        if (maps.hasFactory(out)) {
+        if (maps.canCreate(out)) {
             return true;
         }
 

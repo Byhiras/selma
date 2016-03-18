@@ -16,17 +16,17 @@
  */
 package fr.xebia.extras.selma.codegen;
 
-import static fr.xebia.extras.selma.IgnoreMissing.DEFAULT;
-
-import java.util.List;
+import fr.xebia.extras.selma.CollectionMappingStrategy;
+import fr.xebia.extras.selma.IgnoreMissing;
+import fr.xebia.extras.selma.Maps;
+import fr.xebia.extras.selma.codegen.BuilderWrapperFactory.BuilderWrapper;
 
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import java.util.List;
 
-import fr.xebia.extras.selma.CollectionMappingStrategy;
-import fr.xebia.extras.selma.IgnoreMissing;
-import fr.xebia.extras.selma.Maps;
+import static fr.xebia.extras.selma.IgnoreMissing.DEFAULT;
 
 /**
  * Created by slemesle on 10/11/14.
@@ -52,7 +52,6 @@ public class MapsWrapper {
     private final IgnoreMissing ignoreMissing;
     private boolean ignoreMissingProperties;
     private final CollectionMappingStrategy collectionMappingStrategy;
-
 
     public MapsWrapper(MethodWrapper method, MapperWrapper mapperWrapper) {
 
@@ -85,7 +84,6 @@ public class MapsWrapper {
         } else {
             ignoreMissing = missing;
         }
-
     }
 
     public void reportUnused() {
@@ -141,7 +139,11 @@ public class MapsWrapper {
         return mapperWrapper.generateNewInstanceSourceNodes(inOutType, outBeanWrapper);
     }
 
-    public boolean hasFactory(TypeMirror typeMirror) {
-        return mapperWrapper.hasFactory(typeMirror);
+    public boolean canCreate(TypeMirror typeMirror) {
+        return mapperWrapper.canCreate(typeMirror);
+    }
+
+    public BuilderWrapper getBuilder(TypeMirror typeMirror) {
+        return mapperWrapper.getBuilder(typeMirror);
     }
 }

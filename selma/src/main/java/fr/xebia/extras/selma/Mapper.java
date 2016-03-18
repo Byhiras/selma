@@ -144,6 +144,12 @@ public @interface Mapper {
      * By default Selma uses a setter to provide new mapped collections. Passing this attribute to ALLOW_GETTER will
      * make Selma use a getter to map collections if the setter does not exist.
      */
-     CollectionMappingStrategy withCollectionStrategy() default CollectionMappingStrategy.DEFAULT;
+    CollectionMappingStrategy withCollectionStrategy() default CollectionMappingStrategy.DEFAULT;
 
+    /**
+     * Add one or more mappings from classes to their builders.  An exact class match in {@link Builder#classes()} will
+     * always take priority over a match from {@link Builder#classPatterns()}, and {@code Builder}s that appear
+     * earlier in the list will take priority over those that appear later.
+     */
+    Builder[] withBuilders() default {};
 }

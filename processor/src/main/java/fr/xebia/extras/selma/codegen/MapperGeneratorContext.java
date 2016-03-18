@@ -27,7 +27,10 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Source code generation context
@@ -39,9 +42,9 @@ public class MapperGeneratorContext {
     private final CompilerMessageRegistry messageRegistry;
     int depth = 0;
 
-    Elements elements;
+    final Elements elements;
 
-    Types type;
+    final Types type;
 
     // Handle nesting on source node
     LinkedList<StackElem> stack;
@@ -160,6 +163,10 @@ public class MapperGeneratorContext {
 
     public Elements elements() {
         return elements;
+    }
+
+    public Types types() {
+        return type;
     }
 
     public void warn(Element element, String templateMessage, Object... args) {

@@ -21,6 +21,7 @@ import fr.xebia.extras.selma.CollectionMappingStrategy;
 import fr.xebia.extras.selma.IgnoreMissing;
 import fr.xebia.extras.selma.IoC;
 import fr.xebia.extras.selma.Mapper;
+import fr.xebia.extras.selma.codegen.BuilderWrapperFactory.BuilderWrapper;
 
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
@@ -60,6 +61,8 @@ public class MapperWrapper {
     private final CollectionMappingStrategy collectionMappingStrategy;
     private final boolean abstractClass;
     private final FactoryWrapper factory;
+
+    private final BuilderWrapperFactory builderFactory;
 
     public MapperWrapper(MapperGeneratorContext context, TypeElement mapperInterface) {
         this.context = context;
@@ -113,6 +116,9 @@ public class MapperWrapper {
 
         abstractClass = mapperInterface.getModifiers().contains(Modifier.ABSTRACT) &&
                 mapperInterface.getKind() == ElementKind.CLASS;
+
+        List<AnnotationWrapper> builderAnnotations = mapper.getAsAnnotationWrapper("withBuilders");
+        builderFactory = BuilderWrapperFactory.create(context, builderAnnotations, mapperInterface);
     }
 
 
@@ -225,7 +231,11 @@ public class MapperWrapper {
         return res;
     }
 
-    public boolean hasFactory(TypeMirror typeMirror) {
-        return factory.hasFactory(typeMirror);
+    public boolean canCreate(TypeMirror typeMirror) {
+        return factory.hasFactory(typeMirror) || builderFactory.hasBuilder(typeMirror);
+    }
+
+    public BuilderWrapper getBuilder(TypeMirror typeMirror) {
+        return builderFactory.getBuilder(typeMirror);
     }
 }

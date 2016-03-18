@@ -86,7 +86,7 @@ public abstract class MappingSourceNode {
 
     }
 
-    public static MappingSourceNode mapMethod(final String inType, final String outType, final String name, final boolean override) {
+    public static MappingSourceNode mapMethod(final String inType, final String outType, final String name, final boolean override, final String buildMethod) {
 
         return new MappingSourceNode() {
             @Override
@@ -100,14 +100,14 @@ public abstract class MappingSourceNode {
 
                 writeBody(writer);
 
-                writer.emitStatement("return out");
+                writer.emitStatement(getReturnStatement(buildMethod));
                 writer.endMethod();
                 writer.emitEmptyLine();
             }
         };
     }
 
-    public static MappingSourceNode mapMethod(final InOutType inOutType, final String name, final boolean override) {
+    public static MappingSourceNode mapMethod(final InOutType inOutType, final String name, final boolean override, final String buildMethod) {
 
         return new MappingSourceNode() {
             @Override void writeNode(JavaWriter writer) throws IOException {
@@ -123,7 +123,7 @@ public abstract class MappingSourceNode {
                 }
                 writeBody(writer);
 
-                writer.emitStatement("return out");
+                writer.emitStatement(getReturnStatement(buildMethod));
                 writer.endMethod();
                 writer.emitEmptyLine();
             }
@@ -131,7 +131,7 @@ public abstract class MappingSourceNode {
     }
 
 
-    public static MappingSourceNode mapMethodNotFinal(final InOutType inOutType, final String name, final boolean override) {
+    public static MappingSourceNode mapMethodNotFinal(final InOutType inOutType, final String name, final boolean override, final String buildMethod) {
 
         return new MappingSourceNode() {
             @Override
@@ -149,13 +149,16 @@ public abstract class MappingSourceNode {
 
                 writeBody(writer);
 
-                writer.emitStatement("return out");
+                writer.emitStatement(getReturnStatement(buildMethod));
                 writer.endMethod();
                 writer.emitEmptyLine();
             }
         };
     }
 
+    private static String getReturnStatement(String buildMethod) {
+        return buildMethod == null ? "return out" : "return out." + buildMethod + "()";
+    }
 
     public static MappingSourceNode controlNotNull(final String field, final boolean outPutAsParam) {
         return new MappingSourceNode() {
@@ -229,17 +232,31 @@ public abstract class MappingSourceNode {
         return new MappingSourceNode() {
             @Override
             void writeNode(JavaWriter writer) throws IOException {  // declaring out should support both primitive and declared default value (null / primitive)
-                writer.emitStatement("%s out %s", outType, (outType.getKind().isPrimitive() ? "= fr.xebia.extras.selma.SelmaConstants.DEFAULT_"+outType.getKind() : "= null"));
+                writer.emitStatement("%s out = %s", outType, getDefaultValue(outType));
             }
         };
+    }
+
+    public static MappingSourceNode returnDefault(final TypeMirror outType) {
+        return new MappingSourceNode() {
+            @Override
+            void writeNode(JavaWriter writer) throws IOException {  // declaring out should support both primitive and declared default value (null / primitive)
+                writer.emitStatement("return %s", getDefaultValue(outType));
+            }
+        };
+    }
+
+    private static String getDefaultValue(final TypeMirror outType) {
+        return outType.getKind().isPrimitive() ? "fr.xebia.extras.selma.SelmaConstants.DEFAULT_" + outType.getKind() : "null";
     }
 
     public static MappingSourceNode notSupported(final String message) {
         return new MappingSourceNode() {
             @Override
             void writeNode(JavaWriter writer) throws IOException {
-                writer.emitJavadoc("Throw notSupportedExeption because we failed to generate the mapping code: \n" + message);
-                writer.emitStatement("throw new UnsupportedOperationException(\"%s\")", message);
+                writer.emitJavadoc("Throw UnsupportedOperationException because we failed to generate the mapping code: \n" + message);
+                String statementMessage = message.replace("\n", "\" +\n\""); // need to quote message if it is over multiple lines
+                writer.emitStatement("throw new UnsupportedOperationException(\"%s\")", statementMessage);
             }
         };
     }
