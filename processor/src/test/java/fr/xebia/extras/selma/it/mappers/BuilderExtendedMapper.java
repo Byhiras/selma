@@ -17,17 +17,21 @@
 package fr.xebia.extras.selma.it.mappers;
 
 import fr.xebia.extras.selma.Builder;
+import fr.xebia.extras.selma.EnumMapper;
 import fr.xebia.extras.selma.Mapper;
-import fr.xebia.extras.selma.beans.BuilderBeanIn;
-import fr.xebia.extras.selma.beans.BuilderBeanOut;
-import fr.xebia.extras.selma.beans.ExtendedBuilderBeanOut;
+import fr.xebia.extras.selma.beans.*;
 
 /**
- *
+ * Test that builder that returns sub-class of target type is matched successfully.  Also tests that enums
+ * are excluded from builders, even if a builder config matches them.
  */
 @Mapper(
-        withBuilders = @Builder(classes = BuilderBeanOut.class, builderClass = ExtendedBuilderBeanOut.Builder.class)
+        withEnums = @EnumMapper(from = EnumA.class, to = EnumB.class),
+        withBuilders = {
+                @Builder(classes = BuilderBeanOut.class, builderClass = ExtendedBuilderBeanOut.Builder.class),
+                @Builder(classPatterns = "^fr\\.xebia\\.extras\\.selma\\.beans\\.")
+        }
 )
 public interface BuilderExtendedMapper {
-    BuilderBeanOut asBuilderOut(BuilderBeanIn in);
+    BuilderBeanOut asBuilderOut(ExtendedBuilderBeanIn in);
 }

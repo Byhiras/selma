@@ -1,9 +1,6 @@
 package fr.xebia.extras.selma.codegen;
 
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Name;
-import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
@@ -115,6 +112,11 @@ abstract class BuilderWrapperFactory {
         }
 
         private BuilderConfig getBuilderConfig(TypeMirror bean) {
+            // if this is an enum, never match.  doesn't make sense to 'build' an enum
+            if (context.types().asElement(bean).getKind() == ElementKind.ENUM) {
+                return null;
+            }
+
             // look for exact matches first
             for (BuilderConfig builderConfig : builderConfigs) {
                 if (builderConfig.matchesClass(bean)) {

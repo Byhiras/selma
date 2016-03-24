@@ -68,16 +68,23 @@ public class BuilderMapperIT extends IntegrationTestBase {
     }
 
     @Test
-    public void builderExtendedMapper_maps_should_use_builder_class() throws Exception {
+    public void builderExtendedMapper_should_use_builder_class() throws Exception {
         BuilderExtendedMapper mapper = Selma.getMapper(BuilderExtendedMapper.class);
 
-        BuilderBeanOut res = mapper.asBuilderOut(builderBeanIn);
+        Random random = new Random();
+        ExtendedBuilderBeanIn extendedBuilderBeanIn = new ExtendedBuilderBeanIn();
+        extendedBuilderBeanIn.setIntVal(random.nextInt(100));
+        extendedBuilderBeanIn.setStr("a string " + random.nextInt(100));
+        extendedBuilderBeanIn.setEnumVal(EnumA.A);
+
+        BuilderBeanOut res = mapper.asBuilderOut(extendedBuilderBeanIn);
 
         assertThat(res, notNullValue());
         assertThat(res, instanceOf(ExtendedBuilderBeanOut.class));
-        assertThat(res.getIntVal(), equalTo(builderBeanIn.getIntVal()));
+        assertThat(res.getIntVal(), equalTo(extendedBuilderBeanIn.getIntVal()));
         // should be using the builder with fixed string
-        assertThat(res.getStr(), equalTo(builderBeanIn.getStr()));
+        assertThat(res.getStr(), equalTo(extendedBuilderBeanIn.getStr()));
+        assertThat(((ExtendedBuilderBeanOut) res).getEnumVal(), equalTo(EnumB.A));
     }
 
     @Test
@@ -115,7 +122,7 @@ public class BuilderMapperIT extends IntegrationTestBase {
     }
 
     @Test
-    public void builderFieldsMapper_maps_should_map_fields_to_builder() throws Exception {
+    public void builderFieldsMapper_should_map_fields_to_builder() throws Exception {
         BuilderFieldsMapper mapper = Selma.getMapper(BuilderFieldsMapper.class);
 
         BuilderBeanOut2 res = mapper.asBuilderOut(builderBeanIn);
@@ -126,7 +133,7 @@ public class BuilderMapperIT extends IntegrationTestBase {
     }
 
     @Test
-    public void builderMethodMapper_maps_should_use_custom_build_method() throws Exception {
+    public void builderMethodMapper_should_use_custom_build_method() throws Exception {
         BuilderMethodMapper mapper = Selma.getMapper(BuilderMethodMapper.class);
 
         BuilderBeanOut2 res = mapper.asBuilderOut(builderBeanIn);
