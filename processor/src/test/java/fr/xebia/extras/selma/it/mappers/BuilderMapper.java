@@ -18,6 +18,7 @@ package fr.xebia.extras.selma.it.mappers;
 
 import fr.xebia.extras.selma.Builder;
 import fr.xebia.extras.selma.Mapper;
+import fr.xebia.extras.selma.Maps;
 import fr.xebia.extras.selma.beans.BuilderBeanIn;
 import fr.xebia.extras.selma.beans.BuilderBeanOut;
 
@@ -29,4 +30,9 @@ import fr.xebia.extras.selma.beans.BuilderBeanOut;
 )
 public interface BuilderMapper {
     BuilderBeanOut asBuilderOut(BuilderBeanIn in);
+
+    @Maps(
+            withCustom = BuilderInterceptor.class
+    )
+    BuilderBeanOut asBuilderOutWithInterceptor(BuilderBeanIn in);
 }

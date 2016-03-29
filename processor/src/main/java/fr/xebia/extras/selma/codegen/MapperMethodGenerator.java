@@ -78,10 +78,13 @@ public class MapperMethodGenerator {
     }
 
     private void buildMappingMethod(JavaWriter writer, InOutType inOutType, String name, boolean override) throws IOException {
-
         boolean isPrimitiveOrImmutable = false;
+
+        // check predefined mappers etc first, because we definitely won't use a builder if we find one.
+        final MappingBuilder mappingBuilder = findBuilderFor(inOutType);
+
         // if we're using a builder, sub in the builder as the out type
-        final BuilderWrapper builder = maps.getBuilder(inOutType.out());
+        final BuilderWrapper builder = mappingBuilder == null ? maps.getBuilder(inOutType.out()) : null;
         // the inOutType used for the actual mapping
         final InOutType mappedInOutType;
         if (builder == null) {
@@ -104,8 +107,6 @@ public class MapperMethodGenerator {
         }
 
         MappingSourceNode ptr = blank(), blankRoot = ptr;
-
-        MappingBuilder mappingBuilder = findBuilderFor(inOutType);
 
         if (mappingBuilder != null) {
 
@@ -139,7 +140,7 @@ public class MapperMethodGenerator {
         methodNode = methodNode.child(blankRoot.body);
 
         // Call the interceptor if it exist
-        MappingBuilder interceptor = maps.mappingInterceptor(inOutType);
+        MappingBuilder interceptor = maps.mappingInterceptor(mappedInOutType);
         if (interceptor != null) {
             methodNode.lastChild().child(interceptor.build(context, new SourceNodeVars()));
         }

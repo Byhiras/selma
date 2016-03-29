@@ -162,13 +162,17 @@ public class CustomMapperWrapper {
 
     private void collectCustomMappers() {
 
-        List<String> customClasses = annotationWrapper.getAsStrings(WITH_CUSTOM);
+        List<Object> customClasses = annotationWrapper.getAsList(WITH_CUSTOM);
         if (customClasses.size() > 0) {
             int mappingMethodCount = 0;
 
-            for (String customMapper : customClasses) {
+            for (Object customMapper : customClasses) {
+                if (customMapper instanceof String) {
+                    // we get "<error>" as a string if the compiler couldn't find the custom class
+                    break;
+                }
 
-                final TypeElement element = context.elements.getTypeElement(customMapper.replaceAll("\\.class$", ""));
+                final TypeElement element = (TypeElement) context.types().asElement((TypeMirror) customMapper);
 
                 mappingMethodCount += collectCustomMethods(element, false);
 

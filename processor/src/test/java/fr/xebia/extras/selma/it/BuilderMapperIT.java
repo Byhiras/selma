@@ -42,7 +42,8 @@ import static org.hamcrest.Matchers.*;
         BuilderFixedBuilderClassMapper.class,
         BuilderFqClassMapper.class,
         BuilderMethodMapper.class,
-        BuilderPackageAndClassMapper.class
+        BuilderPackageAndClassMapper.class,
+        BuilderInterceptor.class
 })
 public class BuilderMapperIT extends IntegrationTestBase {
     private BuilderBeanIn builderBeanIn;
@@ -65,6 +66,19 @@ public class BuilderMapperIT extends IntegrationTestBase {
         assertThat(res, notNullValue());
         assertThat(res.getIntVal(), equalTo(builderBeanIn.getIntVal()));
         assertThat(res.getStr(), equalTo(builderBeanIn.getStr()));
+    }
+
+    @Test
+    public void builderMapper_should_use_interceptor() throws Exception {
+        assertCompilationWarning(BuilderMapper.class, "BuilderBeanOut asBuilderOutWithInterceptor(BuilderBeanIn in);", "Custom interceptor method \"fr.xebia.extras.selma.it.mappers.BuilderInterceptor.builderBeanInterceptor\" is never used");
+
+        BuilderMapper mapper = Selma.getMapper(BuilderMapper.class);
+
+        BuilderBeanOut res = mapper.asBuilderOutWithInterceptor(builderBeanIn);
+
+        assertThat(res, notNullValue());
+        assertThat(res.getIntVal(), equalTo(builderBeanIn.getIntVal()));
+        assertThat(res.getStr(), equalTo(builderBeanIn.getStr() + " intercepted"));
     }
 
     @Test
