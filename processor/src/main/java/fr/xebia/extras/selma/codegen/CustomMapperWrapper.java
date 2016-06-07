@@ -41,6 +41,7 @@ public class CustomMapperWrapper {
     private final MapperGeneratorContext context;
     private final HashMap<InOutType, String> unusedCustomMappers;
     private final Map<InOutType, MappingBuilder> registryMap;
+    private final Map<TypeMirror, Map<TypeMirrorEquiv, MappingBuilder>> outOnlyRegistryMap;
     private final Map<InOutType, MappingBuilder> interceptorMap;
 
 
@@ -50,32 +51,27 @@ public class CustomMapperWrapper {
     private final IoC ioC;
 
     public CustomMapperWrapper(AnnotationWrapper mapperAnnotation, MapperGeneratorContext context) {
-        this.annotatedElement = mapperAnnotation.getAnnotatedElement();
-
-        this.annotationWrapper = mapperAnnotation;
-        this.context = context;
-        this.customMapperFields = new LinkedList<TypeElement>();
-        this.unusedCustomMappers = new HashMap();
-        this.unusedInterceptor = new HashMap<InOutType, String>();
-        this.registryMap = new HashMap<InOutType, MappingBuilder>();
-        this.interceptorMap = new HashMap<InOutType, MappingBuilder>();
-        ioC = IoC.valueOf(annotationWrapper.getAsString(MapperWrapper.WITH_IOC));
-
-        collectCustomMappers();
+        this(null, mapperAnnotation, context, IoC.valueOf(mapperAnnotation.getAsString(MapperWrapper.WITH_IOC)));
     }
 
     public CustomMapperWrapper(CustomMapperWrapper parent, AnnotationWrapper annotationWrapper,
                                MapperGeneratorContext context) {
+        this(parent, annotationWrapper, context, parent.ioC);
+    }
+
+    private CustomMapperWrapper(CustomMapperWrapper parent, AnnotationWrapper annotationWrapper,
+                               MapperGeneratorContext context, IoC ioc) {
         this.parent = parent;
         this.annotationWrapper = annotationWrapper;
         this.customMapperFields = new LinkedList<TypeElement>();
-        this.unusedCustomMappers = new HashMap();
+        this.unusedCustomMappers = new HashMap<InOutType, String>();
         this.unusedInterceptor = new HashMap<InOutType, String>();
         this.registryMap = new HashMap<InOutType, MappingBuilder>();
+        this.outOnlyRegistryMap = new HashMap<TypeMirror, Map<TypeMirrorEquiv, MappingBuilder>>();
         this.interceptorMap = new HashMap<InOutType, MappingBuilder>();
 
         this.context = context;
-        this.ioC = parent.ioC;
+        this.ioC = ioc;
 
         if(annotationWrapper != null) {
             this.annotatedElement = annotationWrapper.getAnnotatedElement();
@@ -84,7 +80,6 @@ public class CustomMapperWrapper {
             annotatedElement = null;
         }
     }
-
 
     void emitCustomMappersFields(JavaWriter writer, boolean assign) throws IOException {
         for (TypeElement customMapperField : customMapperFields) {
@@ -144,6 +139,13 @@ public class CustomMapperWrapper {
         }
 
         registryMap.put(inOutType, res);
+        Map<TypeMirrorEquiv, MappingBuilder> builders = outOnlyRegistryMap.get(inOutType.out());
+        if (builders == null) {
+            builders = new HashMap<TypeMirrorEquiv, MappingBuilder>();
+            outOnlyRegistryMap.put(inOutType.out(), builders);
+        }
+
+        builders.put(new TypeMirrorEquiv(inOutType.in()), res);
     }
 
 
@@ -283,6 +285,19 @@ public class CustomMapperWrapper {
 
     public MappingBuilder getMapper(InOutType inOutType) {
         MappingBuilder res = registryMap.get(inOutType);
+        if (res == null) {
+            // slow compatibility, get 'out' matchers and check if in type can be matched to a mapper's input
+            Map<TypeMirrorEquiv, MappingBuilder> matches = outOnlyRegistryMap.get(inOutType.out());
+            if (matches != null) {
+                for (Map.Entry<TypeMirrorEquiv, MappingBuilder> entry : matches.entrySet()) {
+                    if (context.type.isAssignable(inOutType.in(), entry.getKey().type())) {
+                        res = entry.getValue();
+                        break;
+                    }
+                }
+            }
+        }
+
         if (res != null) {
             unusedCustomMappers.remove(inOutType);
         } else if (parent != null) {
@@ -391,6 +406,44 @@ public class CustomMapperWrapper {
                 updateGraphMethod = entry1.updateGraphMethod;
                 immutableMethod = methodWrapper;
             }
+        }
+    }
+
+    private final class TypeMirrorEquiv {
+        private final TypeMirror type;
+        private final String str;
+
+        public TypeMirrorEquiv(TypeMirror type) {
+            this.type = type;
+            this.str = type.toString();
+        }
+
+        public TypeMirror type() {
+            return type;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || TypeMirrorEquiv.class != o.getClass()) {
+                return false;
+            }
+
+            TypeMirrorEquiv that = (TypeMirrorEquiv) o;
+
+            return context.type.isSameType(type, that.type);
+        }
+
+        @Override
+        public int hashCode() {
+            return str.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return str;
         }
     }
 }
